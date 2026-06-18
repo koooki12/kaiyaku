@@ -96,6 +96,13 @@ export const SERVICE_PRESETS: ServicePreset[] = [
     memo: "Claude Pro",
   },
   {
+    name: "Gemini",
+    category: "アプリ",
+    cancelUrl: "https://one.google.com/u/0/explore-plan",
+    trialDays: 30,
+    memo: "Google One AI プレミアム（Gemini Advanced）",
+  },
+  {
     name: "Canva",
     category: "アプリ",
     cancelUrl: "https://www.canva.com/settings/billing-and-teams",
