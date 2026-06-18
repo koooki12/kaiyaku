@@ -1,16 +1,16 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { signInAction } from "./actions";
-import { getCurrentUserId } from "@/lib/user";
+import { getCurrentUser } from "@/lib/user";
 
 export default async function LandingPage({
   searchParams,
 }: {
   searchParams: Promise<{ error?: string; deleted?: string }>;
 }) {
-  // すでにログイン済みなら一覧へ
-  const userId = await getCurrentUserId();
-  if (userId) redirect("/items");
+  // DB に実在するユーザーのときだけ遷移（cookie だけ残った状態でループしないように）
+  const user = await getCurrentUser();
+  if (user) redirect(user.email_verified ? "/items" : "/check-email");
 
   const { error, deleted } = await searchParams;
 
