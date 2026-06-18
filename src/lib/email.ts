@@ -82,6 +82,40 @@ function itemBlockHtml(item: CancelItem, appUrl: string): string {
 }
 
 /**
+ * メールアドレス本人確認メールの本文を作る。
+ */
+export function buildVerificationEmail(verifyUrl: string): {
+  subject: string;
+  html: string;
+  text: string;
+} {
+  const subject = "【あとで解約】メールアドレスの確認をお願いします";
+  const html = `
+  <div style="max-width:520px;margin:0 auto;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#1f2937;padding:24px 16px;">
+    <p style="font-size:20px;font-weight:800;color:#f54a00;margin:0 0 8px;">あとで解約</p>
+    <p style="font-size:15px;line-height:1.6;margin:0 0 8px;">
+      ご登録ありがとうございます。<br/>
+      解約予定日のメール通知を受け取るには、下のボタンでメールアドレスの確認をお願いします。
+    </p>
+    <a href="${escapeHtml(verifyUrl)}" style="display:inline-block;margin:12px 0;background:#f54a00;color:#ffffff;text-decoration:none;font-weight:700;padding:12px 22px;border-radius:10px;font-size:15px;">メールアドレスを確認する</a>
+    <p style="font-size:13px;color:#6b7280;line-height:1.6;margin-top:8px;">
+      このリンクは24時間で無効になります。<br/>
+      心当たりがない場合は、このメールを破棄してください（確認しない限り通知は送られません）。
+    </p>
+    <p style="font-size:12px;color:#9ca3af;margin-top:16px;word-break:break-all;">
+      ボタンが押せない場合は、次のURLをブラウザで開いてください:<br/>
+      ${escapeHtml(verifyUrl)}
+    </p>
+  </div>`;
+  const text =
+    `あとで解約 - メールアドレスの確認\n\n` +
+    `解約予定日のメール通知を受け取るには、次のURLを開いて確認してください（24時間有効）。\n\n` +
+    `${verifyUrl}\n\n` +
+    `心当たりがない場合はこのメールを破棄してください。確認しない限り通知は送られません。`;
+  return { subject, html, text };
+}
+
+/**
  * Resend 設定が正しいか確認するためのテストメール本文を作る。
  */
 export function buildTestEmail(): {
@@ -112,7 +146,10 @@ export function buildTestEmail(): {
 /**
  * 1ユーザー分（複数アイテム）の通知メール本文を作る。
  */
-export function buildNotificationEmail(items: CancelItem[]): {
+export function buildNotificationEmail(
+  items: CancelItem[],
+  unsubscribeUrl: string
+): {
   subject: string;
   html: string;
   text: string;
@@ -127,6 +164,7 @@ export function buildNotificationEmail(items: CancelItem[]): {
       : `【あとで解約】${count}件の解約予定日が近づいています`;
 
   const blocks = items.map((i) => itemBlockHtml(i, appUrl)).join("");
+  const safeUnsub = escapeHtml(unsubscribeUrl);
 
   const html = `
   <div style="max-width:520px;margin:0 auto;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#1f2937;padding:24px 16px;">
@@ -138,7 +176,7 @@ export function buildNotificationEmail(items: CancelItem[]): {
     ${blocks}
     <p style="font-size:12px;color:#9ca3af;margin-top:24px;line-height:1.6;">
       このメールは「あとで解約」の通知設定がONのため送信されています。<br/>
-      通知を停止するには <a href="${appUrl}/settings" style="color:#9ca3af;">設定ページ</a> から通知をOFFにしてください。
+      今後この通知を受け取らない場合は <a href="${safeUnsub}" style="color:#9ca3af;text-decoration:underline;">こちらから通知を停止</a> できます。
     </p>
   </div>`;
 
@@ -157,7 +195,7 @@ export function buildNotificationEmail(items: CancelItem[]): {
         return lines.join("\n");
       })
       .join("\n\n") +
-    `\n\n通知の停止は ${appUrl}/settings から。`;
+    `\n\n今後この通知を受け取らない場合はこちら: ${unsubscribeUrl}`;
 
   return { subject, html, text };
 }

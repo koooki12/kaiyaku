@@ -44,5 +44,9 @@ export type AppUser = {
   id: string;
   email: string | null;
   notify_enabled: boolean;
+  email_verified: boolean;
+  verify_token: string | null;
+  verify_token_expires_at: string | null;
+  unsubscribe_token: string | null;
   created_at: string;
 };

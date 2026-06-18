@@ -9,8 +9,18 @@ create table if not exists users (
   email text unique,
   -- 通知設定（/settings で利用）
   notify_enabled boolean not null default true,
+  -- メール本人確認（ダブルオプトイン）。確認済みのメールにだけ通知する。
+  email_verified boolean not null default false,
+  verify_token text,
+  verify_token_expires_at timestamp with time zone,
+  -- 通知停止リンク用の推測困難なトークン（メールに埋め込む）
+  unsubscribe_token text,
   created_at timestamp with time zone default now()
 );
+
+-- トークン検索用インデックス
+create index if not exists idx_users_verify_token on users(verify_token);
+create index if not exists idx_users_unsubscribe_token on users(unsubscribe_token);
 
 -- 解約予定アイテム
 create table if not exists cancel_items (

@@ -224,7 +224,12 @@ curl -i -H "Authorization: Bearer <CRON_SECRET>" \
 | `/items`        | 解約予定の一覧（グループ表示）                   |
 | `/items/new`    | 解約予定の登録フォーム                           |
 | `/items/[id]`   | 詳細・解約済み化・解約URLを開く・メモ編集・削除  |
-| `/settings`     | 通知状態の表示・テスト通知送信・通知メールアドレス・通知ON/OFF・ログアウト |
+| `/settings`     | 通知状態・本人確認状態・テスト通知・通知ON/OFF・データ削除導線・規約/PPリンク |
+| `/settings/delete` | アカウントとデータの完全削除（確認チェック必須） |
+| `/verify`       | メール確認リンクの着地点（トークン検証・24時間有効） |
+| `/unsubscribe`  | 通知停止リンクの着地点（ボタン押下=POSTで確定） |
+| `/privacy`      | プライバシーポリシー |
+| `/terms`        | 利用規約 |
 
 ## API
 
@@ -232,18 +237,65 @@ curl -i -H "Authorization: Bearer <CRON_SECRET>" \
 | ------------------------------------- | ---------------------------------------------------------- |
 | `GET /api/cron/notify-cancellations`  | 通知バッチ。`CRON_SECRET`（Bearer）で認証。Vercel Cron が毎日実行 |
 
+## メール本人確認（ダブルオプトイン）
+
+迷惑メール・なりすまし送信を防ぐため、**確認済みのメールアドレスにだけ通知を送ります**。
+
+- 登録時／メール変更時に、確認用リンク付きメールを送信（`verify_token`、推測困難な256bit乱数、**24時間で失効**）。
+- リンク（`/verify?token=...`）を開くと `email_verified=true` になり、通知対象になります。
+- **未確認のメールには通知を送りません**（Cron は `email_verified=true` で絞り込み）。テスト送信も確認済みのみ可能（本人確認の回避を防止）。
+- すべての通知メールには **通知停止リンク**（`/unsubscribe?token=...`、`unsubscribe_token` も推測困難な乱数）を必ず含みます。リンク先でボタンを押すと `notify_enabled=false` になります（メールクライアントの自動プリフェッチで誤停止しないよう、確定は POST）。
+
 ## データベース
 
-`supabase/schema.sql` を参照してください。
+`supabase/schema.sql` を参照してください。既存DBには `supabase/migrations/` のマイグレーションを順に適用します。
 
-- `users` … 簡易ユーザー（`email`, `notify_enabled`）
+- `users` … 簡易ユーザー（`email`, `notify_enabled`, `email_verified`, `verify_token`, `verify_token_expires_at`, `unsubscribe_token`）
 - `cancel_items` … 解約予定アイテム（`service_name`, `cancel_due_date`, `status`, `notified_at`, `notification_status` など）
 
 ## セキュリティ
 
 - `SUPABASE_SERVICE_ROLE_KEY` / `RESEND_API_KEY` / `CRON_SECRET` はいずれも `NEXT_PUBLIC_` を付けないサーバー専用変数で、クライアントJSには含まれません（`use client` コンポーネントは未使用）。
 - 全ての参照・更新・削除は cookie の `user_id` を使って `cancel_items` を `id` + `user_id` の両方で絞り込むため、他人のデータは閲覧・編集・削除できません。
+- 通知は **本人確認済み（`email_verified=true`）のメールにのみ送信**。第三者のメールアドレスを勝手に登録しても、確認しない限り通知は飛びません。
+- 確認トークン・通知停止トークンは `crypto.randomBytes(32)`（256bit）で生成し、確認トークンには **24時間の有効期限**があります。
 - Cron エンドポイントは `CRON_SECRET` による Bearer 認証で保護しています（未設定時は実行されません）。
+- 利用者は `/settings/delete` から自分のデータを完全削除できます（`users` 削除で `cancel_items` も `ON DELETE CASCADE`）。
+
+## App Store / Google Play 公開前チェックリスト
+
+> 本アプリは Web アプリです。ストア公開時は WebView ラッパー（例: Capacitor / Median 等）でネイティブ化するか、TWA（Trusted Web Activity）での公開を想定しています。審査でよく問われる項目を中心にまとめています。
+
+### 法務・プライバシー
+- [ ] **プライバシーポリシー** を公開URLで掲載（`/privacy`）。ストアの申請フォームにも同URLを記載
+- [ ] **利用規約** を掲載（`/terms`）
+- [ ] プライバシーポリシー／利用規約内の **運営者の連絡先メールアドレス**を実際の値に差し替え（現状はプレースホルダ）
+- [ ] App Store: **App Privacy（データ収集の申告）** で「メールアドレス」「ユーザーコンテンツ」を申告
+- [ ] Google Play: **Data safety フォーム**で収集データ・用途・暗号化・削除可否を申告
+- [ ] Google Play: **アカウント削除の導線**（アプリ内 `/settings/delete`＋必要なら Web の削除ページURL）を申告
+
+### メール・通知の健全性
+- [ ] **ダブルオプトイン**（本人確認）が有効に動作する
+- [ ] 全通知メールに **配信停止リンク**が含まれる
+- [ ] Resend で **独自ドメインを検証**し、`RESEND_FROM` を独自ドメインのアドレスに設定
+- [ ] 可能なら **SPF / DKIM / DMARC** を設定（Resend のドメイン検証で DKIM/SPF は設定される）
+
+### 機能・品質
+- [ ] `npm run build` が通る
+- [ ] 主要導線（登録→確認メール→通知→停止→削除）を実機確認
+- [ ] 外部リンク（解約URL）が新規タブ・`rel="noopener noreferrer"` で開く（実装済み）
+- [ ] エラー時に内部情報を画面に出さない（実装済み：失敗時は汎用文言）
+- [ ] スマホ実機での表示確認（セーフエリア・フォントサイズ）
+
+### ストア掲載物
+- [ ] アプリアイコン（各サイズ）／スクリーンショット
+- [ ] アプリ説明文・カテゴリ・年齢区分
+- [ ] サポートURL・マーケティングURL
+
+### セキュリティ
+- [ ] `SUPABASE_SERVICE_ROLE_KEY` / `RESEND_API_KEY` / `CRON_SECRET` が `NEXT_PUBLIC_` なしでサーバー専用
+- [ ] クライアントバンドルに機密キーが含まれない（`grep` で確認）
+- [ ] 他人のデータを閲覧・編集・削除できない（所有者チェック）
 
 ## MVPに含まれないもの
 
@@ -253,3 +305,4 @@ curl -i -H "Authorization: Bearer <CRON_SECRET>" \
 
 - 認証は cookie ベースの簡易ユーザーです。本番運用では Supabase Auth + RLS への移行を推奨します。
 - メール通知は実装済みです（Vercel Cron + Resend）。本番では `RESEND_FROM` に独自ドメインの検証済みアドレスを設定してください。
+- メール確認を導入したため、**既存ユーザーは一度未確認状態になります**（マイグレーション後、再度確認メールが必要）。

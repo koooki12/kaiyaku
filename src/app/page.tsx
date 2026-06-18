@@ -6,17 +6,22 @@ import { getCurrentUserId } from "@/lib/user";
 export default async function LandingPage({
   searchParams,
 }: {
-  searchParams: Promise<{ error?: string }>;
+  searchParams: Promise<{ error?: string; deleted?: string }>;
 }) {
   // すでにログイン済みなら一覧へ
   const userId = await getCurrentUserId();
   if (userId) redirect("/items");
 
-  const { error } = await searchParams;
+  const { error, deleted } = await searchParams;
 
   return (
     <main className="flex flex-1 flex-col px-6 pb-10 pt-14">
       <div className="flex flex-1 flex-col items-center text-center">
+        {deleted && (
+          <p className="mb-6 w-full rounded-lg bg-gray-100 px-4 py-3 text-sm font-medium text-gray-600">
+            アカウントとデータを削除しました。ご利用ありがとうございました。
+          </p>
+        )}
         <span className="mb-6 inline-block rounded-full bg-orange-50 px-4 py-1 text-sm font-medium text-brand">
           解約忘れ、もうしない。
         </span>
@@ -62,7 +67,18 @@ export default async function LandingPage({
           </button>
         </form>
         <p className="mt-3 text-center text-xs text-gray-400">
-          パスワード不要。メールアドレスだけで始められます。
+          パスワード不要。確認メールのリンクを開くと通知が有効になります。
+        </p>
+        <p className="mt-3 text-center text-xs leading-relaxed text-gray-400">
+          登録すると
+          <Link href="/terms" className="underline">
+            利用規約
+          </Link>
+          ・
+          <Link href="/privacy" className="underline">
+            プライバシーポリシー
+          </Link>
+          に同意したものとみなされます。
         </p>
         <p className="mt-4 text-center text-sm">
           <Link href="/items" className="text-gray-400 underline">

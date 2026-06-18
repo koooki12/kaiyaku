@@ -2,12 +2,15 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { getSupabaseAdmin } from "@/lib/supabase";
+import { getSupabaseAdmin, type AppUser } from "@/lib/supabase";
 import {
   getCurrentUserId,
   getCurrentUser,
   signInWithEmail,
   signOut,
+  sendVerificationEmail,
+  unsubscribeByToken,
+  deleteUserAccount,
 } from "@/lib/user";
 import { getResend, getFromAddress, buildTestEmail } from "@/lib/email";
 
@@ -159,17 +162,43 @@ export async function deleteItemAction(formData: FormData) {
  * 通知設定（メールアドレス・通知ON/OFF）を更新する。
  */
 export async function updateSettingsAction(formData: FormData) {
-  const userId = await getCurrentUserId();
-  if (!userId) redirect("/");
+  const user = await getCurrentUser();
+  if (!user) redirect("/");
 
   const email = String(formData.get("email") ?? "").trim().toLowerCase();
   const notifyEnabled = formData.get("notify_enabled") === "on";
 
   const supabase = getSupabaseAdmin();
   const update: Record<string, unknown> = { notify_enabled: notifyEnabled };
-  if (email) update.email = email;
 
-  await supabase.from("users").update(update).eq("id", userId);
+  // メールアドレスが変更された場合は、本人確認をやり直す
+  const emailChanged = !!email && email !== user.email;
+  if (email) update.email = email;
+  if (emailChanged) {
+    update.email_verified = false;
+    update.verify_token = null;
+    update.verify_token_expires_at = null;
+  }
+
+  await supabase.from("users").update(update).eq("id", user.id);
+
+  // 新しいメールアドレス宛に確認メールを送る
+  if (emailChanged) {
+    const { data: refreshed } = await supabase
+      .from("users")
+      .select("*")
+      .eq("id", user.id)
+      .maybeSingle();
+    if (refreshed) {
+      await sendVerificationEmail(refreshed as AppUser);
+    }
+    redirect(
+      "/settings?notice=" +
+        encodeURIComponent(
+          `${email} に確認メールを送信しました。リンクを開くと通知が有効になります`
+        )
+    );
+  }
 
   revalidatePath("/settings");
   redirect("/settings?saved=1");
@@ -187,6 +216,16 @@ export async function sendTestEmailAction() {
     redirect(
       "/settings?notice=" +
         encodeURIComponent("メールアドレスを登録してから送信してください")
+    );
+  }
+
+  // 本人確認を回避した迷惑メール送信を防ぐため、確認済みのみ送信可
+  if (!user.email_verified) {
+    redirect(
+      "/settings?notice=" +
+        encodeURIComponent(
+          "テスト送信にはメールアドレスの確認が必要です。確認メールのリンクを開いてください"
+        )
     );
   }
 
@@ -219,4 +258,65 @@ export async function sendTestEmailAction() {
     "/settings?notice=" +
       encodeURIComponent(`${user.email} 宛にテスト通知を送信しました`)
   );
+}
+
+/**
+ * 確認メールを再送する。
+ */
+export async function resendVerificationAction() {
+  const user = await getCurrentUser();
+  if (!user) redirect("/");
+
+  if (!user.email) {
+    redirect(
+      "/settings?notice=" +
+        encodeURIComponent("メールアドレスを登録してください")
+    );
+  }
+  if (user.email_verified) {
+    redirect(
+      "/settings?notice=" + encodeURIComponent("すでに確認済みです")
+    );
+  }
+
+  const ok = await sendVerificationEmail(user);
+  redirect(
+    "/settings?notice=" +
+      encodeURIComponent(
+        ok
+          ? `${user.email} に確認メールを送信しました。メール内のリンクを開いてください`
+          : "確認メールの送信に失敗しました。メールアドレスを確認してください"
+      )
+  );
+}
+
+/**
+ * 通知停止トークンで通知をOFFにする（メール内リンクからのPOST）。
+ */
+export async function unsubscribeAction(formData: FormData) {
+  const token = String(formData.get("token") ?? "");
+  const result = await unsubscribeByToken(token);
+  if (!result) {
+    redirect("/unsubscribe?error=1");
+  }
+  redirect("/unsubscribe?done=1");
+}
+
+/**
+ * ログイン中ユーザーのアカウントと全データを削除する。
+ */
+export async function deleteAccountAction(formData: FormData) {
+  const userId = await getCurrentUserId();
+  if (!userId) redirect("/");
+
+  // 誤操作防止: 確認チェックを必須にする
+  if (formData.get("confirm") !== "delete") {
+    redirect(
+      "/settings/delete?error=" +
+        encodeURIComponent("確認のチェックを入れてください")
+    );
+  }
+
+  await deleteUserAccount(userId);
+  redirect("/?deleted=1");
 }

@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { AppHeader } from "@/components/AppHeader";
 import { getCurrentUser } from "@/lib/user";
@@ -7,6 +8,7 @@ import {
   updateSettingsAction,
   signOutAction,
   sendTestEmailAction,
+  resendVerificationAction,
 } from "@/app/actions";
 
 export const dynamic = "force-dynamic";
@@ -54,6 +56,27 @@ export default async function SettingsPage({
           </p>
         )}
 
+        {/* メール本人確認バナー（未確認のとき） */}
+        {user.email && !user.email_verified && (
+          <section className="mb-6 rounded-2xl border border-orange-200 bg-orange-50 p-4">
+            <h2 className="text-sm font-bold text-brand">
+              ⚠️ メールアドレスが未確認です
+            </h2>
+            <p className="mt-1.5 text-xs leading-relaxed text-gray-700">
+              迷惑メール防止のため、確認が済むまで解約予定日の通知は送信されません。
+              届いた確認メールのリンクを開いてください。届いていない場合は再送できます。
+            </p>
+            <form action={resendVerificationAction} className="mt-3">
+              <button
+                type="submit"
+                className="w-full rounded-xl bg-brand py-3 text-base font-bold text-white transition active:scale-[0.99]"
+              >
+                確認メールを再送する
+              </button>
+            </form>
+          </section>
+        )}
+
         {/* 現在の通知設定状態 */}
         <section className="mb-6 rounded-2xl border border-gray-200 p-4">
           <h2 className="mb-3 text-sm font-bold text-gray-700">通知の状態</h2>
@@ -74,6 +97,17 @@ export default async function SettingsPage({
                 {user.email ?? "未登録"}
               </span>
             </StatusRow>
+            <StatusRow label="メール確認">
+              {user.email_verified ? (
+                <span className="rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-bold text-green-700">
+                  確認済み
+                </span>
+              ) : (
+                <span className="rounded-full bg-orange-100 px-2.5 py-0.5 text-xs font-bold text-brand">
+                  未確認
+                </span>
+              )}
+            </StatusRow>
             <StatusRow label="通知予定">
               <span className="text-gray-900">{upcomingCount}件</span>
             </StatusRow>
@@ -90,17 +124,19 @@ export default async function SettingsPage({
             </p>
           )}
 
-          {/* テスト通知 */}
+          {/* テスト通知（確認済みのみ） */}
           <form action={sendTestEmailAction} className="mt-4">
             <button
               type="submit"
-              disabled={!user.email}
+              disabled={!user.email || !user.email_verified}
               className="w-full rounded-xl border-2 border-brand py-3 text-base font-bold text-brand transition active:scale-[0.99] disabled:cursor-not-allowed disabled:border-gray-200 disabled:text-gray-300"
             >
               ✉️ テスト通知を送る
             </button>
             <p className="mt-1.5 text-xs text-gray-400">
-              登録メールアドレス宛にテストメールを送り、通知設定が正しいか確認できます。
+              {user.email_verified
+                ? "登録メールアドレス宛にテストメールを送り、通知設定が正しいか確認できます。"
+                : "メールアドレスの確認が完了すると、テスト送信できます。"}
             </p>
           </form>
         </section>
@@ -166,6 +202,32 @@ export default async function SettingsPage({
             ログアウト
           </button>
         </form>
+
+        {/* 法的情報 */}
+        <nav className="mt-6 flex items-center justify-center gap-4 text-xs text-gray-400">
+          <Link href="/privacy" className="underline">
+            プライバシーポリシー
+          </Link>
+          <span aria-hidden>・</span>
+          <Link href="/terms" className="underline">
+            利用規約
+          </Link>
+        </nav>
+
+        {/* アカウント・データ削除 */}
+        <section className="mt-10 border-t border-gray-100 pt-6">
+          <h2 className="text-sm font-bold text-gray-700">データの削除</h2>
+          <p className="mt-1.5 text-xs leading-relaxed text-gray-400">
+            登録したメールアドレス・解約予定・通知設定をすべて削除できます。
+            この操作は取り消せません。
+          </p>
+          <Link
+            href="/settings/delete"
+            className="mt-3 block w-full rounded-xl border border-red-200 py-3 text-center text-sm font-bold text-red-600 transition active:scale-[0.99]"
+          >
+            アカウントとデータを削除
+          </Link>
+        </section>
       </main>
     </>
   );

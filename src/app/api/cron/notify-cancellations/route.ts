@@ -4,6 +4,7 @@ import { todayStr } from "@/lib/date";
 import {
   getResend,
   getFromAddress,
+  getAppUrl,
   buildNotificationEmail,
 } from "@/lib/email";
 
@@ -12,7 +13,13 @@ export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
 type ItemWithUser = CancelItem & {
-  users: { id: string; email: string | null; notify_enabled: boolean } | null;
+  users: {
+    id: string;
+    email: string | null;
+    notify_enabled: boolean;
+    email_verified: boolean;
+    unsubscribe_token: string | null;
+  } | null;
 };
 
 /**
@@ -34,10 +41,12 @@ export async function GET(request: Request) {
   const supabase = getSupabaseAdmin();
   const today = todayStr(); // Asia/Tokyo 基準の今日
 
-  // 対象: active / notify_date が今日 / 未送信、かつ通知ONのユーザー
+  // 対象: active / notify_date が今日 / 未送信、かつ通知ON・本人確認済みのユーザー
   const { data, error } = await supabase
     .from("cancel_items")
-    .select("*, users!inner(id, email, notify_enabled)")
+    .select(
+      "*, users!inner(id, email, notify_enabled, email_verified, unsubscribe_token)"
+    )
     .eq("status", "active")
     .eq("notify_date", today)
     .eq("notification_status", "pending");
@@ -51,17 +60,29 @@ export async function GET(request: Request) {
 
   const rows = (data ?? []) as ItemWithUser[];
 
-  // 通知ON かつ メールアドレスがあるものだけ対象にする
+  // 通知ON かつ メールアドレスあり かつ 本人確認済みのものだけ対象にする
   const targets = rows.filter(
-    (r) => r.users?.notify_enabled === true && !!r.users?.email
+    (r) =>
+      r.users?.notify_enabled === true &&
+      r.users?.email_verified === true &&
+      !!r.users?.email
   );
 
   // ユーザーごとにまとめる（1ユーザー1通）
-  const byUser = new Map<string, { email: string; items: CancelItem[] }>();
+  const byUser = new Map<
+    string,
+    { email: string; unsubscribeToken: string | null; items: CancelItem[] }
+  >();
   for (const row of targets) {
     const email = row.users!.email!;
     const key = row.user_id;
-    if (!byUser.has(key)) byUser.set(key, { email, items: [] });
+    if (!byUser.has(key)) {
+      byUser.set(key, {
+        email,
+        unsubscribeToken: row.users!.unsubscribe_token,
+        items: [],
+      });
+    }
     // 結合した users はメール本文に不要なので取り除く
     const { users: _users, ...item } = row;
     void _users;
@@ -70,15 +91,20 @@ export async function GET(request: Request) {
 
   const resend = getResend();
   const from = getFromAddress();
+  const appUrl = getAppUrl();
   const nowIso = new Date().toISOString();
 
   let sentUsers = 0;
   let sentItems = 0;
   let failedItems = 0;
 
-  for (const { email, items } of byUser.values()) {
+  for (const { email, unsubscribeToken, items } of byUser.values()) {
     const ids = items.map((i) => i.id);
-    const { subject, html, text } = buildNotificationEmail(items);
+    const unsubscribeUrl = `${appUrl}/unsubscribe?token=${unsubscribeToken ?? ""}`;
+    const { subject, html, text } = buildNotificationEmail(
+      items,
+      unsubscribeUrl
+    );
 
     try {
       const { error: sendError } = await resend.emails.send({
