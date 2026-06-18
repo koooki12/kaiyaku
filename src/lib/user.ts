@@ -1,4 +1,5 @@
 import { cookies } from "next/headers";
+import { redirect } from "next/navigation";
 import { getSupabaseAdmin, type AppUser } from "./supabase";
 import { generateToken, verifyTokenExpiry } from "./tokens";
 import {
@@ -35,6 +36,18 @@ export async function getCurrentUser(): Promise<AppUser | null> {
 
   if (error || !data) return null;
   return data as AppUser;
+}
+
+/**
+ * 本サービス（要・本人確認）用のガード。
+ * 未ログインなら "/"、未確認なら "/check-email" へリダイレクトする。
+ * 確認済みユーザーを返す。
+ */
+export async function requireVerifiedUser(): Promise<AppUser> {
+  const user = await getCurrentUser();
+  if (!user) redirect("/");
+  if (!user.email_verified) redirect("/check-email");
+  return user;
 }
 
 /**

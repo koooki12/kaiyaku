@@ -22,8 +22,9 @@ export async function signInAction(formData: FormData) {
   if (!email) {
     redirect("/?error=" + encodeURIComponent("メールアドレスを入力してください"));
   }
-  await signInWithEmail(email);
-  redirect("/items");
+  const user = await signInWithEmail(email);
+  // 未確認なら「確認待ち」ページへ。確認済み（再ログイン）なら一覧へ。
+  redirect(user.email_verified ? "/items" : "/check-email");
 }
 
 export async function signOutAction() {
@@ -262,29 +263,29 @@ export async function sendTestEmailAction() {
 
 /**
  * 確認メールを再送する。
+ * redirect_to で戻り先を切り替える（/check-email または /settings）。
  */
-export async function resendVerificationAction() {
+export async function resendVerificationAction(formData: FormData) {
+  const requested = String(formData.get("redirect_to") ?? "/settings");
+  const base = requested === "/check-email" ? "/check-email" : "/settings";
+
   const user = await getCurrentUser();
   if (!user) redirect("/");
 
   if (!user.email) {
-    redirect(
-      "/settings?notice=" +
-        encodeURIComponent("メールアドレスを登録してください")
-    );
+    redirect(base + "?notice=" + encodeURIComponent("メールアドレスを登録してください"));
   }
   if (user.email_verified) {
-    redirect(
-      "/settings?notice=" + encodeURIComponent("すでに確認済みです")
-    );
+    redirect(base + "?notice=" + encodeURIComponent("すでに確認済みです"));
   }
 
   const ok = await sendVerificationEmail(user);
   redirect(
-    "/settings?notice=" +
+    base +
+      "?notice=" +
       encodeURIComponent(
         ok
-          ? `${user.email} に確認メールを送信しました。メール内のリンクを開いてください`
+          ? `${user.email} に確認メールを再送しました。メール内のリンクを開いてください`
           : "確認メールの送信に失敗しました。メールアドレスを確認してください"
       )
   );

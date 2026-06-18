@@ -1,7 +1,7 @@
-import { notFound, redirect } from "next/navigation";
+import { notFound } from "next/navigation";
 import { AppHeader } from "@/components/AppHeader";
 import { getSupabaseAdmin, type CancelItem } from "@/lib/supabase";
-import { getCurrentUserId } from "@/lib/user";
+import { requireVerifiedUser } from "@/lib/user";
 import {
   formatDateJa,
   formatDateTimeJa,
@@ -22,8 +22,8 @@ export default async function ItemDetailPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  const userId = await getCurrentUserId();
-  if (!userId) redirect("/");
+  const user = await requireVerifiedUser();
+  const userId = user.id;
 
   const { id } = await params;
   const supabase = getSupabaseAdmin();

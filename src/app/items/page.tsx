@@ -1,16 +1,15 @@
 import Link from "next/link";
-import { redirect } from "next/navigation";
 import { AppHeader } from "@/components/AppHeader";
 import { ItemCard } from "@/components/ItemCard";
 import { getSupabaseAdmin, type CancelItem } from "@/lib/supabase";
-import { getCurrentUserId } from "@/lib/user";
+import { requireVerifiedUser } from "@/lib/user";
 import { groupItems } from "@/lib/date";
 
 export const dynamic = "force-dynamic";
 
 export default async function ItemsPage() {
-  const userId = await getCurrentUserId();
-  if (!userId) redirect("/");
+  const user = await requireVerifiedUser();
+  const userId = user.id;
 
   const supabase = getSupabaseAdmin();
   const { data } = await supabase

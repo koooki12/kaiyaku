@@ -1,7 +1,6 @@
-import { redirect } from "next/navigation";
 import { AppHeader } from "@/components/AppHeader";
 import { createItemAction } from "@/app/actions";
-import { getCurrentUserId } from "@/lib/user";
+import { requireVerifiedUser } from "@/lib/user";
 
 export const dynamic = "force-dynamic";
 
@@ -19,8 +18,7 @@ export default async function NewItemPage({
 }: {
   searchParams: Promise<{ error?: string }>;
 }) {
-  const userId = await getCurrentUserId();
-  if (!userId) redirect("/");
+  await requireVerifiedUser();
 
   const { error } = await searchParams;
 
