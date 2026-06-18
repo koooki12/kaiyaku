@@ -63,11 +63,13 @@ export default async function LandingPage({
             type="submit"
             className="w-full rounded-xl bg-brand py-4 text-lg font-bold text-white shadow-sm transition active:scale-[0.99] active:bg-brand-dark"
           >
-            登録する
+            登録・ログインする
           </button>
         </form>
         <p className="mt-3 text-center text-xs text-gray-400">
-          パスワード不要。確認メールのリンクを開くと通知が有効になります。
+          パスワード不要。登録済みの方も同じボタンでログインできます。
+          <br />
+          確認メールのリンクを開くと通知が有効になります。
         </p>
         <p className="mt-3 text-center text-xs leading-relaxed text-gray-400">
           登録すると
@@ -79,11 +81,6 @@ export default async function LandingPage({
             プライバシーポリシー
           </Link>
           に同意したものとみなされます。
-        </p>
-        <p className="mt-4 text-center text-sm">
-          <Link href="/items" className="text-gray-400 underline">
-            すでに登録済みの方
-          </Link>
         </p>
       </div>
     </main>
