@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { AppHeader } from "@/components/AppHeader";
 import { getSupabaseAdmin, type CancelItem } from "@/lib/supabase";
@@ -133,6 +134,13 @@ export default async function ItemDetailPage({
 
         {/* アクションボタン */}
         <div className="mt-6 space-y-3">
+          <Link
+            href={`/items/${item.id}/edit`}
+            className="flex w-full items-center justify-center gap-2 rounded-xl border border-gray-300 py-4 text-base font-bold text-gray-700 transition active:scale-[0.99]"
+          >
+            ✏️ 内容を編集する
+          </Link>
+
           {item.cancel_url && (
             <a
               href={item.cancel_url}

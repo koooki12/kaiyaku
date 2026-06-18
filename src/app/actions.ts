@@ -76,6 +76,78 @@ export async function createItemAction(formData: FormData) {
 }
 
 /**
+ * 既存の解約予定アイテムを更新する。
+ * notify_date を変更した場合は通知ステータスを pending に戻し、
+ * 新しい通知日で再通知できるようにする。
+ */
+export async function updateItemAction(formData: FormData) {
+  const userId = await getCurrentUserId();
+  if (!userId) redirect("/");
+
+  const id = String(formData.get("id") ?? "").trim();
+  const serviceName = String(formData.get("service_name") ?? "").trim();
+  const cancelDueDate = String(formData.get("cancel_due_date") ?? "").trim();
+
+  if (!id) redirect("/items");
+  if (!serviceName || !cancelDueDate) {
+    redirect(
+      `/items/${id}/edit?error=` +
+        encodeURIComponent("サービス名と解約予定日は必須です")
+    );
+  }
+
+  const priceRaw = String(formData.get("price") ?? "").trim();
+  const notifyDate = String(formData.get("notify_date") ?? "").trim();
+  const cancelUrl = String(formData.get("cancel_url") ?? "").trim();
+  const memo = String(formData.get("memo") ?? "").trim();
+  const category = String(formData.get("category") ?? "").trim();
+
+  const supabase = getSupabaseAdmin();
+
+  // 所有者チェック＋現在の通知日を取得
+  const { data: existing } = await supabase
+    .from("cancel_items")
+    .select("notify_date")
+    .eq("id", id)
+    .eq("user_id", userId)
+    .maybeSingle();
+
+  if (!existing) redirect("/items");
+
+  const update: Record<string, unknown> = {
+    service_name: serviceName,
+    price: priceRaw ? Number(priceRaw) : null,
+    cancel_due_date: cancelDueDate,
+    notify_date: notifyDate || null,
+    cancel_url: cancelUrl || null,
+    memo: memo || null,
+    category: category || null,
+    updated_at: new Date().toISOString(),
+  };
+
+  // 通知日が変わったら、新しい日付で再通知できるよう pending に戻す
+  const oldNotify = (existing as { notify_date: string | null }).notify_date ?? "";
+  if (oldNotify !== (notifyDate || "")) {
+    update.notification_status = "pending";
+    update.notified_at = null;
+  }
+
+  const { error } = await supabase
+    .from("cancel_items")
+    .update(update)
+    .eq("id", id)
+    .eq("user_id", userId);
+
+  if (error) {
+    redirect(`/items/${id}/edit?error=` + encodeURIComponent("保存に失敗しました"));
+  }
+
+  revalidatePath("/items");
+  revalidatePath(`/items/${id}`);
+  redirect(`/items/${id}`);
+}
+
+/**
  * アイテムを解約済みにする。
  */
 export async function markCancelledAction(formData: FormData) {
