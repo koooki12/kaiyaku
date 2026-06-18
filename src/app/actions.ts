@@ -190,6 +190,7 @@ export async function sendTestEmailAction() {
     );
   }
 
+  let errorMessage: string | null = null;
   try {
     const resend = getResend();
     const { subject, html, text } = buildTestEmail();
@@ -202,10 +203,14 @@ export async function sendTestEmailAction() {
     });
     if (error) throw new Error(error.message);
   } catch (e) {
-    console.error("[sendTestEmail] failed:", e instanceof Error ? e.message : e);
+    errorMessage = e instanceof Error ? e.message : String(e);
+    console.error("[sendTestEmail] failed:", errorMessage);
+  }
+
+  if (errorMessage) {
     redirect(
       "/settings?notice=" +
-        encodeURIComponent("テスト送信に失敗しました。Resend の設定を確認してください")
+        encodeURIComponent("テスト送信に失敗しました: " + errorMessage)
     );
   }
 
