@@ -297,6 +297,42 @@ curl -i -H "Authorization: Bearer <CRON_SECRET>" \
 - [ ] クライアントバンドルに機密キーが含まれない（`grep` で確認）
 - [ ] 他人のデータを閲覧・編集・削除できない（所有者チェック）
 
+## PWA（ホーム画面に追加）
+
+ブラウザを開かなくても、ホーム画面のアイコンからアプリのように起動できます。
+
+- `src/app/manifest.ts` … Web App Manifest（`name`/`short_name`=「あとで解約」、`display: standalone`、`theme_color: #f54a00`、`background_color: #ffffff`、`start_url: /items`）
+- `src/app/icon.png`（512px）・`src/app/apple-icon.png`（180px）… favicon / apple-touch-icon（Next.js の規約で自動的に `<link>` 付与）
+- `public/icon-192.png` / `public/icon-512.png` / `public/icon-maskable-512.png` … manifest が参照するアプリアイコン（マスカブル対応）
+- iOS の standalone 表示用に `apple-mobile-web-app-capable` 等のメタを付与（`src/app/layout.tsx`）
+
+### アイコンの再生成
+アイコンはブランド色の角丸＋チェックマークを `scripts/gen-icons.mjs` で生成しPNGをコミット済みです。デザインを変えたいときのみ:
+
+```bash
+npm install -D sharp
+node scripts/gen-icons.mjs   # src/app/ と public/ にPNGを再生成
+npm uninstall sharp          # 通常ビルドに sharp は不要
+```
+
+### 動作確認手順
+
+**iPhone (Safari)**
+1. `https://kaiyaku.vercel.app/` を Safari で開く
+2. 共有ボタン → **「ホーム画面に追加」**
+3. 追加されたアイコンから起動 → アドレスバーの無い **アプリらしい全画面（standalone）** で開く
+4. 起動時に `/items` に入れる（未ログインなら登録画面へ誘導）
+
+**Android (Chrome)**
+1. `https://kaiyaku.vercel.app/` を Chrome で開く
+2. メニュー → **「アプリをインストール」/「ホーム画面に追加」**（条件を満たすとインストールバナーも表示）
+3. アイコンから起動 → standalone 表示・テーマカラーが反映される
+
+**確認の目安**
+- ブラウザの DevTools → Application → **Manifest** に名前・アイコン・テーマカラーが表示される
+- `https://kaiyaku.vercel.app/manifest.webmanifest` がJSONを返す
+- `/icon-192.png` `/icon-512.png` `/apple-icon.png` が画像を返す
+
 ## MVPに含まれないもの
 
 決済 / 自動銀行連携 / Gmail読み取り / App Store課金連携 / 複雑な認証 / AI機能 / ネイティブ通知。
