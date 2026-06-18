@@ -4,7 +4,7 @@ import { requireVerifiedUser } from "@/lib/user";
 
 export const dynamic = "force-dynamic";
 
-const CATEGORIES = ["動画", "音楽", "アプリ", "ジム", "学習", "その他"];
+const CATEGORIES = ["動画", "音楽", "ゲーム", "アプリ", "ジム", "学習", "その他"];
 
 export default async function NewItemPage({
   searchParams,
