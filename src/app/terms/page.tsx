@@ -84,7 +84,10 @@ export default function TermsPage() {
           <p>
             本規約に関するお問い合わせは、運営者までご連絡ください。
             <br />
-            連絡先: <span className="text-gray-400">（運営者の連絡先メールアドレスを記載）</span>
+            連絡先:{" "}
+            <a href="mailto:support@atode-kaiyaku.com" className="text-brand underline">
+              support@atode-kaiyaku.com
+            </a>
           </p>
         </Section>
       </div>
