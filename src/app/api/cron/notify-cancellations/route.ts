@@ -113,6 +113,10 @@ export async function GET(request: Request) {
         subject,
         html,
         text,
+        // 配信停止ヘッダ（迷惑メール判定の低減・メールクライアントの配信停止UI対応）
+        headers: {
+          "List-Unsubscribe": `<${unsubscribeUrl}>`,
+        },
       });
 
       if (sendError) throw new Error(sendError.message);
