@@ -21,8 +21,8 @@ export default function RootLayout({
 }) {
   return (
     <html lang="ja">
-      <body className="min-h-screen bg-white text-gray-800">
-        <div className="mx-auto flex min-h-screen w-full max-w-md flex-col">
+      <body className="min-h-screen overflow-x-hidden bg-white text-gray-800">
+        <div className="mx-auto flex min-h-screen w-full max-w-md flex-col overflow-x-hidden">
           {children}
         </div>
       </body>

@@ -22,6 +22,6 @@ textarea {
 
 @layer components {
   .form-input {
-    @apply w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-base text-gray-900 outline-none transition focus:border-brand focus:ring-2 focus:ring-orange-100;
+    @apply w-full min-w-0 rounded-xl border border-gray-300 bg-white px-4 py-3 text-base text-gray-900 outline-none transition focus:border-brand focus:ring-2 focus:ring-orange-100;
   }
 }

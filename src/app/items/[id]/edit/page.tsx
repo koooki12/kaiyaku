@@ -149,7 +149,7 @@ function Field({
   children: React.ReactNode;
 }) {
   return (
-    <label className="block">
+    <label className="block min-w-0">
       <span className="mb-1.5 block text-sm font-semibold text-gray-700">
         {label}
         {required && <span className="ml-1 text-brand">*</span>}
