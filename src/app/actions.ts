@@ -190,7 +190,7 @@ export async function sendTestEmailAction() {
     );
   }
 
-  let errorMessage: string | null = null;
+  let failed = false;
   try {
     const resend = getResend();
     const { subject, html, text } = buildTestEmail();
@@ -203,14 +203,15 @@ export async function sendTestEmailAction() {
     });
     if (error) throw new Error(error.message);
   } catch (e) {
-    errorMessage = e instanceof Error ? e.message : String(e);
-    console.error("[sendTestEmail] failed:", errorMessage);
+    failed = true;
+    // 詳細はサーバーログにのみ出力（画面には出さない）
+    console.error("[sendTestEmail] failed:", e instanceof Error ? e.message : e);
   }
 
-  if (errorMessage) {
+  if (failed) {
     redirect(
       "/settings?notice=" +
-        encodeURIComponent("テスト送信に失敗しました: " + errorMessage)
+        encodeURIComponent("テスト送信に失敗しました。Resend の設定を確認してください")
     );
   }
 
