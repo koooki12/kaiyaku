@@ -20,6 +20,26 @@ textarea {
   font-size: 16px;
 }
 
+/* iOS Safari の日付入力は独自サイズで枠をはみ出すため、幅を強制的に収める */
+input[type="date"],
+input[type="datetime-local"],
+input[type="time"] {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+/* 日付入力内のカレンダーアイコンが幅を押し広げないように */
+input[type="date"]::-webkit-date-and-time-value {
+  text-align: left;
+}
+input[type="date"]::-webkit-calendar-picker-indicator {
+  margin-left: 0;
+}
+
 @layer components {
   .form-input {
     @apply w-full min-w-0 rounded-xl border border-gray-300 bg-white px-4 py-3 text-base text-gray-900 outline-none transition focus:border-brand focus:ring-2 focus:ring-orange-100;
